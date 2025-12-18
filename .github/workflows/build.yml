@@ -11,34 +11,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: darwin-aarch64
-            platform: macos-latest
-            target: aarch64-apple-darwin
-            bundles: [app, dmg]
-            updater: true
-          - name: darwin-x86_64
-            platform: macos-latest
-            target: x86_64-apple-darwin
-            bundles: [app, dmg]
-            updater: true
-          - name: linux-aarch64
-            platform: ubuntu-22.04
-            target: aarch64-unknown-linux-gnu
-            triple: aarch64-linux-gnu
-            arch: arm64
-            bundles: [deb]
-          - name: linux-x86_64
-            platform: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-            triple: x86_64-linux-gnu
-            arch: amd64
-            bundles: [deb, appimage]
-            updater: true
           - name: windows-x86_64
             platform: windows-latest
             target: x86_64-pc-windows-msvc
             bundles: [nsis]
-            updater: true
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -56,86 +32,8 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: (Ubuntu) Set up APT sources
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          cat <<EOF | sudo tee /etc/apt/sources.list
-          deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy main restricted
-          deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted
-          deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy universe
-          deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates universe
-          deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy multiverse
-          deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates multiverse
-          deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-backports main restricted universe multiverse
-          deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security main restricted
-          deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security universe
-          deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security multiverse
-          EOF
-
-      - name: (Ubuntu) Set up APT sources for ${{ matrix.arch }}
-        if: matrix.platform == 'ubuntu-22.04' && matrix.arch != 'amd64'
-        run: |
-          cat <<EOF | sudo tee --append /etc/apt/sources.list
-          deb [arch=${{ matrix.arch }}] http://ports.ubuntu.com/ubuntu-ports/ jammy main restricted
-          deb [arch=${{ matrix.arch }}] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates main restricted
-          deb [arch=${{ matrix.arch }}] http://ports.ubuntu.com/ubuntu-ports/ jammy universe
-          deb [arch=${{ matrix.arch }}] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates universe
-          deb [arch=${{ matrix.arch }}] http://ports.ubuntu.com/ubuntu-ports/ jammy multiverse
-          deb [arch=${{ matrix.arch }}] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates multiverse
-          deb [arch=${{ matrix.arch }}] http://ports.ubuntu.com/ubuntu-ports/ jammy-backports main restricted universe multiverse
-          deb [arch=${{ matrix.arch }}] http://ports.ubuntu.com/ubuntu-ports/ jammy-security main restricted
-          deb [arch=${{ matrix.arch }}] http://ports.ubuntu.com/ubuntu-ports/ jammy-security universe
-          deb [arch=${{ matrix.arch }}] http://ports.ubuntu.com/ubuntu-ports/ jammy-security multiverse
-          EOF
-
-      - name: (Ubuntu) Install native dependencies
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo dpkg --add-architecture ${{ matrix.arch }}
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y \
-            libappindicator3-dev:${{ matrix.arch }} \
-            librsvg2-dev:${{ matrix.arch }} \
-            libssl-dev:${{ matrix.arch }} \
-            libudev-dev:${{ matrix.arch }} \
-            libwebkit2gtk-4.1-dev:${{ matrix.arch }} \
-            patchelf
-          echo "PKG_CONFIG_SYSROOT_DIR=/usr" >> $GITHUB_ENV
-          echo "PKG_CONFIG_PATH=/lib/${{ matrix.triple }}/pkgconfig" >> $GITHUB_ENV
-
-      - name: (Ubuntu) Set up cross-compiler for ${{ matrix.arch }}
-        if: matrix.platform == 'ubuntu-22.04' && matrix.triple != 'x86_64-linux-gnu'
-        run: |
-          sudo apt-get install --no-install-recommends -y gcc-${{ matrix.triple }}
-          mkdir -p .cargo
-          cat <<EOF | tee .cargo/config.toml
-          [target.${{ matrix.target }}]
-          linker = "${{ matrix.triple }}-gcc"
-          EOF
-
       - name: Install frontend dependencies
         run: npm ci
-
-      - name: Update updater configuration
-        shell: python
-        run: |
-          import os
-          import json
-
-          tauri_conf_path = os.path.join('src-tauri', 'tauri.conf.json')
-
-          with open(tauri_conf_path, 'r') as f:
-            tauri_conf = json.load(f)
-
-          create_updater = "${{ matrix.updater }}" == "true" \
-                       and os.getenv('TAURI_SIGNING_PRIVATE_KEY') is not None
-
-          tauri_conf['bundle']['createUpdaterArtifacts'] = 'v1Compatible' if create_updater else False
-
-          with open(tauri_conf_path, 'w') as f:
-            json.dump(tauri_conf, f, indent=2)
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: '${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}'
 
       - name: Build
         uses: tauri-apps/tauri-action@v0
@@ -144,9 +42,6 @@ jobs:
           args: >
             --target ${{ matrix.target }}
             --bundles ${{ join(matrix.bundles, ',') }}
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: '${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}'
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
 
       - name: Collect artifacts
         shell: python
@@ -156,7 +51,6 @@ jobs:
           import shutil
 
           os.makedirs('distrib', exist_ok=True)
-          os.makedirs('updater', exist_ok=True)
 
           artifact_paths = '${{ steps.build.outputs.artifactPaths }}'.replace('\\', '\\\\')
           name = '${{ matrix.name }}'
@@ -166,34 +60,17 @@ jobs:
             sig_file = f'{artifact}.sig'
 
             if filename.endswith('.dmg'):
-              shutil.move(artifact, os.path.join('distrib', f'cskburn-desktop_{name}.dmg'))
-            elif filename.endswith('.app.tar.gz'):
-              shutil.move(artifact, os.path.join('updater', f'cskburn-desktop_{name}.app.tar.gz'))
-              shutil.move(sig_file, os.path.join('updater', f'cskburn-desktop_{name}.app.tar.gz.sig'))
+              shutil.move(artifact, os.path.join('distrib', f'cskburn-factory_{name}.dmg'))
             elif filename.endswith('.deb'):
-              shutil.move(artifact, os.path.join('distrib', f'cskburn-desktop_{name}.deb'))
-            elif filename.endswith('.AppImage'):
-              shutil.move(artifact, os.path.join('distrib', f'cskburn-desktop_{name}.AppImage'))
-            elif filename.endswith('.AppImage.tar.gz'):
-              shutil.move(artifact, os.path.join('updater', f'cskburn-desktop_{name}.AppImage.tar.gz'))
-              shutil.move(sig_file, os.path.join('updater', f'cskburn-desktop_{name}.AppImage.tar.gz.sig'))
+              shutil.move(artifact, os.path.join('distrib', f'cskburn-factory_{name}.deb'))
             elif filename.endswith('-setup.exe'):
-              shutil.move(artifact, os.path.join('distrib', f'cskburn-desktop_{name}-setup.exe'))
-            elif filename.endswith('-setup.nsis.zip'):
-              shutil.move(artifact, os.path.join('updater', f'cskburn-desktop_{name}-setup.nsis.zip'))
-              shutil.move(sig_file, os.path.join('updater', f'cskburn-desktop_{name}-setup.nsis.zip.sig'))
+              shutil.move(artifact, os.path.join('distrib', f'cskburn-factory_{name}-setup.exe'))
 
       - name: Archive distributable
         uses: actions/upload-artifact@v4
         with:
-          name: cskburn-desktop_distrib_${{ github.run_id }}_${{ matrix.name }}
+          name: cskburn-factory_distrib_${{ github.run_id }}_${{ matrix.name }}
           path: distrib/
-
-      - name: Archive updater
-        uses: actions/upload-artifact@v4
-        with:
-          name: cskburn-desktop_updater_${{ github.run_id }}_${{ matrix.name }}
-          path: updater/
 
   publish-distribs:
     needs: build
@@ -203,7 +80,7 @@ jobs:
       - name: Download distributables
         uses: actions/download-artifact@v4
         with:
-          pattern: cskburn-desktop_distrib_*
+          pattern: cskburn-factory_distrib_*
           path: distribs/
           merge-multiple: true
 
@@ -212,67 +89,3 @@ jobs:
         with:
           pattern: distribs/*
           github-token: ${{ secrets.GITHUB_TOKEN }}
-
-  publish-updaters:
-    needs: build
-    if: github.event_name == 'release' && !github.event.release.prerelease
-    runs-on: ubuntu-latest
-    steps:
-      - name: Set up ossutil
-        uses: manyuanrong/setup-ossutil@v2.0
-        with:
-          endpoint: ${{ secrets.ALIYUN_OSS_REGION }}.aliyuncs.com
-          access-key-id: ${{ secrets.ALIYUN_ACCESS_KEY_ID }}
-          access-key-secret: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
-
-      - name: Download updaters
-        uses: actions/download-artifact@v4
-        with:
-          pattern: cskburn-desktop_updater_*
-          path: updaters/
-          merge-multiple: true
-
-      - name: Generate metadata
-        id: metadata
-        shell: python
-        run: |
-          import json
-          import os
-
-          url_prefix = 'https://cdn.listenai.com/public/cskburn-desktop'
-
-          metadata = {
-            'version': '${{ github.event.release.tag_name }}',
-            'notes': ${{ toJson(github.event.release.body) }},
-            'pub_date': '${{ github.event.release.published_at }}',
-            'platforms': {},
-          }
-
-          platforms = ['darwin', 'linux', 'windows']
-          archs = ['aarch64', 'x86_64']
-
-          names = [f'{platform}-{arch}' for platform in platforms for arch in archs]
-
-          for updater in os.listdir('updaters'):
-            for name in names:
-              if name in updater and not updater.endswith('.sig'):
-                with open(os.path.join('updaters', f'{updater}.sig'), 'r') as f:
-                  signature = f.read().strip()
-
-                os.remove(os.path.join('updaters', f'{updater}.sig'))
-
-                metadata['platforms'][name] = {
-                  'signature': signature,
-                  'url': f'{url_prefix}/${{ github.event.release.tag_name }}/{updater}',
-                }
-
-          with open('latest.json', 'w') as f:
-            json.dump(metadata, f)
-
-      - name: Upload to OSS
-        run: |
-          ossutil cp -f latest.json \
-            oss://${{ secrets.ALIYUN_OSS_BUCKET }}/public/cskburn-desktop/
-
-          ossutil cp -r updaters/ \
-            oss://${{ secrets.ALIYUN_OSS_BUCKET }}/public/cskburn-desktop/${{ github.event.release.tag_name }}/
