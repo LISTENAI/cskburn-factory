@@ -16,12 +16,12 @@
           </n-button>
         </n-flex>
       </n-element>
-      <n-element v-else-if="hexImage" :class="$style.empty" :style="{ height: '100%' }">
+      <n-element v-else-if="singleImage" :class="$style.empty" :style="{ height: '100%' }">
         <n-flex :class="$style.hexFile" vertical align="center" justify="center" :wrap="false"
           :style="{ height: '100%' }">
-          <selectable-text :class="$style.name" selectable>{{ hexImage.file.name }}</selectable-text>
+          <selectable-text :class="$style.name" selectable>{{ singleImage.file.name }}</selectable-text>
           <n-space>
-            <file-size :class="$style.size" :size="hexImage.file.size" />
+            <file-size :class="$style.size" :size="singleImage.file.size" />
             <span>-</span>
             <template v-if="props.errors[0]">
               <n-text type="error">{{ props.errors[0] }}</n-text>
@@ -48,7 +48,7 @@
           <n-space>
             <n-tooltip>
               <template #trigger>
-                <n-button size="small" quaternary circle @click="() => hexImage?.file.reveal()">
+                <n-button size="small" quaternary circle @click="() => singleImage?.file.reveal()">
                   <template #icon>
                     <n-icon>
                       <FolderOpen16Regular />
@@ -204,7 +204,7 @@ import { fromHex, toHex } from '@/utils/hex';
 
 import { busyOn } from '@/composables/busyOn';
 import { FlashStatus, type IFlashProgress } from '@/composables/progress';
-import { useHexImage } from '@/composables/partitions';
+import { useHexImage, useLpkImage } from '@/composables/partitions';
 
 import FileDropper from '@/components/common/FileDropper.vue';
 import FileSize from '@/components/common/FileSize.vue';
@@ -229,18 +229,34 @@ const parsing = ref(false);
 async function handleFiles(files: string[]) {
   try {
     const parsed = await busyOn(readImages(files), parsing);
+
     const openedHexImage = images.value.find((image) => image.format == 'hex');
     const pendingHexImage = parsed.find((image) => image.format == 'hex');
     if (pendingHexImage) {
       // Only one hex file is allowed
       await pMap(images.value, (image) => image.file.free());
       images.value = [pendingHexImage];
+      return;
     } else if (openedHexImage) {
       await openedHexImage.file.free();
       images.value = parsed;
-    } else {
-      images.value = [...images.value, ...parsed];
+      return;
     }
+
+    const openedLpkImage = images.value.find((image) => image.format == 'lpk');
+    const pendingLpkImage = parsed.find((image) => image.format == 'lpk');
+    if (pendingLpkImage) {
+      // Only one lpk file is allowed
+      await pMap(images.value, (image) => image.file.free());
+      images.value = [pendingLpkImage];
+      return;
+    } else if (openedLpkImage) {
+      await openedLpkImage.file.free();
+      images.value = parsed;
+      return;
+    }
+
+    images.value = [...images.value, ...parsed];
   } catch (e) {
     if (e instanceof UserError) {
       message.error(e.summary);
@@ -252,6 +268,8 @@ async function handleFiles(files: string[]) {
 }
 
 const hexImage = useHexImage(images);
+const lpkImage = useLpkImage(images);
+const singleImage = computed(() => hexImage.value || lpkImage.value);
 
 interface IPartitionRecord extends IPartition {
   remove(): void;

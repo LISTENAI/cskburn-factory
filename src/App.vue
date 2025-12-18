@@ -157,7 +157,7 @@ import { cleanUpTmpFiles, computeMd5 as computeLocalMd5 } from '@/utils/file';
 import { busyOn } from '@/composables/busyOn';
 import { useAvailableAdbDevices, useAvailableSerialPorts } from '@/composables/devices';
 import { FlashStatus, useFlashProgress } from '@/composables/progress';
-import { useHexImage, usePartitions } from '@/composables/partitions';
+import { useHexImage, useLpkImage, usePartitions } from '@/composables/partitions';
 import { useListen } from '@/composables/tauri/useListen';
 import { useAppName, useAppVersion } from '@/composables/tauri/app';
 import { bindProgressBar, bindTitle } from '@/composables/tauri/window';
@@ -320,6 +320,7 @@ watch(availableAdbDevices, (devices) => {
 });
 
 const hexImage = useHexImage(images);
+const lpkImage = useLpkImage(images);
 const partitions = usePartitions(images);
 
 watch(images, () => {

@@ -19,3 +19,7 @@ export function usePartitions(images: Ref<IFlashImage[]>): Readonly<Ref<IPartiti
 export function useHexImage(images: Ref<IFlashImage[]>): Readonly<Ref<IFlashImage & { format: 'hex' } | undefined>> {
   return computed(() => images.value.find((image) => image.format == 'hex'));
 }
+
+export function useLpkImage(images: Ref<IFlashImage[]>): Readonly<Ref<IFlashImage & { format: 'lpk' } | undefined>> {
+  return computed(() => images.value.find((image) => image.format == 'lpk'));
+}

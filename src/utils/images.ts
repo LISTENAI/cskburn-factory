@@ -34,18 +34,17 @@ export async function readImages(paths: string[]): Promise<IFlashImage[]> {
     }];
   }
 
-  return await pMap(files, async ({ path, ext }) => {
-    if (ext == 'lpk') {
-      return {
-        format: 'lpk',
-        file: await LpkFile.from(path),
-      };
-    } else {
-      return {
-        format: 'bin',
-        addr: 0,
-        file: await LocalFile.from(path),
-      };
-    }
-  });
+  const lpkFile = files.find(({ ext }) => ext == 'lpk');
+  if (lpkFile) {  // Only one lpk file is allowed
+    return [{
+      format: 'lpk',
+      file: await LpkFile.from(lpkFile.path),
+    }];
+  }
+
+  return await pMap(files, async ({ path }) => ({
+    format: 'bin',
+    addr: 0,
+    file: await LocalFile.from(path),
+  }));
 }
