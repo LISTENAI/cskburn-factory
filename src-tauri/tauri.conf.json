@@ -1,7 +1,7 @@
 {
-  "productName": "cskburn desktop",
+  "productName": "cskburn factory",
   "version": "1.1.0",
-  "identifier": "com.listenai.cskburn-desktop",
+  "identifier": "com.listenai.cskburn-factory",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -43,7 +43,7 @@
     },
     "windows": [
       {
-        "title": "cskburn desktop",
+        "title": "cskburn factory",
         "width": 800,
         "height": 600,
         "minWidth": 800,
