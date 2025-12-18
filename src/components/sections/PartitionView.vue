@@ -309,6 +309,10 @@ const partitions = computed<IPartitionRecord[]>(() => images.value.flatMap((imag
 async function handleFilePick() {
   const selected = await open({
     multiple: true,
+    filters: [{
+      name: '聆思固件包',
+      extensions: ['lpk']
+    }],
   });
 
   if (selected && selected.length > 0) {
