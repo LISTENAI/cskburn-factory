@@ -1,9 +1,9 @@
 import { onBeforeUnmount, readonly, ref, watch, type Ref } from 'vue';
 import { DateTime } from 'luxon';
 import { FileHandle, open, remove } from '@tauri-apps/plugin-fs';
+import { join } from '@tauri-apps/api/path';
 
 import { useSettings } from '@/composables/tauri/settings';
-import { join } from '@tauri-apps/api/path';
 
 export function useLogWriter(): ILogWriter {
   const fileName = ref<string>();
@@ -14,6 +14,10 @@ export function useLogWriter(): ILogWriter {
     handle: FileHandle;
     wrote: boolean;
   } | null = null;
+
+  async function writeLine(columns: string[]): Promise<void> {
+    await logFile?.handle.write(new TextEncoder().encode(`${columns.map(column => `"${column}"`).join(',')}\r\n`));
+  }
 
   async function finalizeLog(): Promise<void> {
     if (logFile) {
@@ -27,14 +31,20 @@ export function useLogWriter(): ILogWriter {
     }
   }
 
-  async function appendLog(uuid: string, result: 'SUCCESS' | 'FAILURE'): Promise<void> {
+  async function appendLog(uuid: string, item: ILogItem, result: 'SUCCESS' | 'FAILURE'): Promise<void> {
     if (!logFile) {
       return;
     }
 
-    const now = DateTime.now().setZone('Asia/Shanghai');
-    const line = `"${now.toFormat('yyyy-LL-dd HH:mm:ss')}","${uuid}","${result}"\r\n`;
-    await logFile.handle.write(new TextEncoder().encode(line));
+    const now = DateTime.now().setZone('Asia/Shanghai').toFormat('yyyy-LL-dd HH:mm:ss');
+    switch (item.action) {
+      case 'BURN':
+        await writeLine([now, uuid, item.action, item.lpk_md5, result]);
+        break;
+      case 'READINFO':
+        await writeLine([now, uuid, item.action, '', result]);
+        break;
+    }
     logFile.wrote = true;
   }
 
@@ -51,7 +61,7 @@ export function useLogWriter(): ILogWriter {
           }),
           wrote: false,
         };
-        await logFile.handle.write(new TextEncoder().encode('"TIME","UUID","RESULT"\r\n'));
+        await writeLine(['TIME', 'UUID', 'ACTION', 'LPK_MD5', 'RESULT']);
       }
     } else {
       fileName.value = undefined;
@@ -69,8 +79,15 @@ export function useLogWriter(): ILogWriter {
 
 export interface ILogWriter {
   logFileName: Readonly<Ref<string | undefined>>;
-  appendLog(uuid: string, result: 'SUCCESS' | 'FAILURE'): Promise<void>;
+  appendLog(uuid: string, item: ILogItem, result: 'SUCCESS' | 'FAILURE'): Promise<void>;
 }
+
+export type ILogItem = {
+  action: 'BURN';
+  lpk_md5: string;
+} | {
+  action: 'READINFO';
+};
 
 function newFileName(): string {
   const now = DateTime.now().setZone('Asia/Shanghai');

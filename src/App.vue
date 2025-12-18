@@ -446,7 +446,7 @@ async function startFlashOnSerial(path: string, chip: string, signal: AbortSigna
     status.value = FlashStatus.SUCCESS;
     output.value.push('[烧录成功]');
 
-    await appendLog(chipId.value ?? 'UNKNOWN', 'SUCCESS');
+    await appendLog(chipId.value ?? 'UNKNOWN', { action: 'BURN', lpk_md5: lpkImage.value?.file.md5 ?? '' }, 'SUCCESS');
   } catch (e) {
     console.error(e);
     if (e instanceof CSKBurnTerminatedError) {
@@ -467,7 +467,7 @@ async function startFlashOnSerial(path: string, chip: string, signal: AbortSigna
       output.value.push(`[烧录失败: 发生异常 ${e}]`);
     }
 
-    await appendLog(chipId.value ?? 'UNKNOWN', 'FAILURE');
+    await appendLog(chipId.value ?? 'UNKNOWN', { action: 'BURN', lpk_md5: lpkImage.value?.file.md5 ?? '' }, 'FAILURE');
   }
 }
 
@@ -529,7 +529,7 @@ async function startFlashOnAdb(identifier: string, signal: AbortSignal): Promise
     status.value = FlashStatus.SUCCESS;
     output.value.push('[烧录成功]');
 
-    await appendLog(chipId.value ?? 'UNKNOWN', 'SUCCESS');
+    await appendLog(chipId.value ?? 'UNKNOWN', { action: 'BURN', lpk_md5: lpkImage.value?.file.md5 ?? '' }, 'SUCCESS');
   } catch (e) {
     console.error(e);
 
@@ -551,7 +551,7 @@ async function startFlashOnAdb(identifier: string, signal: AbortSignal): Promise
       output.value.push(`[烧录失败: 发生异常 ${e}]`);
     }
 
-    await appendLog(chipId.value ?? 'UNKNOWN', 'FAILURE');
+    await appendLog(chipId.value ?? 'UNKNOWN', { action: 'BURN', lpk_md5: lpkImage.value?.file.md5 ?? '' }, 'FAILURE');
   }
 }
 
