@@ -5,7 +5,6 @@
     padding: '16px'
   }">
     <app-settings v-model:show="settingsShown" />
-    <auto-updater />
 
     <n-spin :show="busyForInfo || rebootingToRecovery" :style="{ width: 'fit-content' }">
       <n-flex vertical>
@@ -166,7 +165,6 @@ import { useLogWriter } from '@/composables/logWriter';
 import { useSettings } from '@/composables/tauri/settings';
 
 import AppSettings from '@/components/sections/AppSettings.vue';
-import AutoUpdater from '@/components/sections/AutoUpdater.vue';
 import PortSelector, { type IPortSelection } from '@/components/sections/PortSelector.vue';
 import PartitionView from '@/components/sections/PartitionView.vue';
 import LogView from '@/components/sections/LogView.vue';
