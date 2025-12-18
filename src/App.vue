@@ -246,6 +246,8 @@ async function fetchInfoFromSerial(path: string, chip: string): Promise<void> {
     }), busyForInfo);
 
     output.value.push('[获取信息成功]');
+
+    await appendLog(chipId.value ?? 'UNKNOWN', { action: 'READINFO' }, 'SUCCESS');
   } catch (e) {
     console.error(e);
     message.error('获取信息失败');
@@ -281,6 +283,8 @@ async function fetchInfoFromAdb(identifier: string): Promise<void> {
 
       output.value.push(`[获取信息成功]`);
     })(), busyForInfo);
+
+    await appendLog(chipId.value ?? 'UNKNOWN', { action: 'READINFO' }, 'SUCCESS');
   } catch (e) {
     console.error(e);
     message.error('获取信息失败');
