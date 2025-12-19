@@ -57,7 +57,7 @@ import { checkVersion } from '@/utils/adb';
 
 const message = useMessage();
 
-const show = defineModel<boolean>('show', { default: true });
+const show = defineModel<boolean>('show', { default: false });
 
 const form = reactive<{
   logDir: string | null;
@@ -67,17 +67,19 @@ const form = reactive<{
   serialBaudRate: DEFAULT_BAUD_RATE,
 });
 
+watch(show, async (show) => {
+  if (show) {
+    form.logDir = await settings.get('logDir') ?? null;
+    saveLogs.value = !!form.logDir;
+    form.serialBaudRate = await settings.get('serialBaudRate') ?? DEFAULT_BAUD_RATE;
+  }
+});
+
 const saveLogs = ref(false);
 watch(saveLogs, (val) => {
   if (!val) {
     form.logDir = null;
   }
-});
-
-onMounted(async () => {
-  form.logDir = await settings.get('logDir') ?? null;
-  saveLogs.value = !!form.logDir;
-  form.serialBaudRate = await settings.get('serialBaudRate') ?? DEFAULT_BAUD_RATE;
 });
 
 const adbVersion = ref<string | null>(null);
