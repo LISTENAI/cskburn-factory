@@ -24,7 +24,7 @@
           <n-flex v-else-if="selectedPort?.type == 'serial'" align="center">
             <div>芯片:</div>
             <n-select v-model:value="selectedChip" placeholder="请选择芯片" :options="supportedChips"
-              :disabled="busyForInfo || busyForFlash" :style="{ width: '8em' }" />
+              :disabled="busyForInfo || busyForFlash || !!lpkImage" :style="{ width: '8em' }" />
           </n-flex>
         </n-flex>
         <n-flex align="center" size="large">
