@@ -20,6 +20,9 @@
         <n-flex :class="$style.hexFile" vertical align="center" justify="center" :wrap="false"
           :style="{ height: '100%' }">
           <selectable-text :class="$style.name" selectable>{{ singleImage.file.name }}</selectable-text>
+          <div v-if="singleImage.format == 'lpk'">
+            (MD5: <selectable-text selectable>{{ singleImage.file.md5 }}</selectable-text>)
+          </div>
           <n-space>
             <file-size :class="$style.size" :size="singleImage.file.size" />
             <span>-</span>
